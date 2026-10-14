@@ -1,0 +1,271 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Bit Badge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one column "lab notebook" page. Header, text input, a wrapping grid of byte cards with clickable LEDs, then a copyable binary strip. */
+:root {
+  --paper: #eef1f4;
+  --card: #ffffff;
+  --ink: #14233a;
+  --muted: #5c6b80;
+  --line: #cdd5df;
+  --led-off: #dde3ea;
+  --led-on: #e8452c;
+  --led-glow: rgba(232, 69, 44, 0.35);
+  --accent: #14233a;
+  --accent-ink: #eef1f4;
+  --display: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f1826;
+    --card: #17233a;
+    --ink: #e7ecf4;
+    --muted: #93a2ba;
+    --line: #2a3a56;
+    --led-off: #243450;
+    --led-on: #ffb02e;
+    --led-glow: rgba(255, 176, 46, 0.4);
+    --accent: #e7ecf4;
+    --accent-ink: #0f1826;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f1826;
+  --card: #17233a;
+  --ink: #e7ecf4;
+  --muted: #93a2ba;
+  --line: #2a3a56;
+  --led-off: #243450;
+  --led-on: #ffb02e;
+  --led-glow: rgba(255, 176, 46, 0.4);
+  --accent: #e7ecf4;
+  --accent-ink: #0f1826;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.5;
+  padding-inline: 16px;
+  padding-block: 28px 56px;
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: -1px -1px;
+}
+main { max-width: 880px; margin-inline: auto; display: flex; flex-direction: column; gap: 22px; }
+.sheet { background: var(--paper); padding: 4px 0; }
+
+header { display: flex; flex-direction: column; gap: 6px; background: var(--paper); padding: 14px 16px; border: 1px solid var(--line); border-radius: 4px; }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2rem, 8vw, 3.2rem); line-height: 1; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 60ch; }
+
+.controls { display: flex; flex-direction: column; gap: 10px; background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px; }
+label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+input[type="text"] {
+  flex: 1 1 220px; min-width: 0;
+  font: 600 1.4rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink); background: var(--card);
+  border: 2px solid var(--ink); border-radius: 4px; padding: 10px 12px;
+}
+input[type="text"]:focus-visible, button:focus-visible { outline: 3px solid var(--led-on); outline-offset: 2px; }
+button { font: inherit; cursor: pointer; }
+.chip {
+  font-size: 12px; padding: 5px 10px; color: var(--ink); background: var(--card);
+  border: 1px solid var(--line); border-radius: 999px;
+}
+.chip:hover { border-color: var(--ink); }
+.btn {
+  font-weight: 600; padding: 9px 14px; color: var(--accent-ink); background: var(--accent);
+  border: 2px solid var(--accent); border-radius: 4px;
+}
+.btn.ghost { color: var(--ink); background: var(--card); border-color: var(--ink); }
+
+.bytes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 14px; }
+.byte { background: var(--card); border: 1px solid var(--ink); border-radius: 4px; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.byte-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.glyph { font: 800 2.6rem/1 var(--display); min-width: 1ch; }
+.glyph.space { color: var(--muted); font-size: 1rem; }
+.vals { text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.vals b { color: var(--ink); font-weight: 600; }
+.leds { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; }
+.bit { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.led {
+  width: 100%; aspect-ratio: 1; border-radius: 50%; border: 1px solid var(--line);
+  background: var(--led-off); padding: 0; transition: background 0.12s, box-shadow 0.12s;
+}
+.led[aria-pressed="true"] { background: var(--led-on); border-color: var(--led-on); box-shadow: 0 0 10px 2px var(--led-glow); }
+.weight { font-size: 9px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.strip { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.bin { margin: 0; font-size: 1rem; font-weight: 600; letter-spacing: 0.04em; word-break: break-word; overflow-wrap: anywhere; }
+.hint { margin: 0; font-size: 12px; color: var(--muted); }
+.status { min-height: 1.2em; font-size: 12px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .led { transition: none; } }
+</style>
+
+<main>
+  <header>
+    <h1>Bit Badge</h1>
+    <p>Type a name. See the 1s and 0s a computer actually stores. Tap any light to flip a bit and watch the letter change.</p>
+  </header>
+
+  <section class="controls" aria-label="Controls">
+    <label for="name">Your text (up to 12 characters)</label>
+    <div class="row">
+      <input id="name" type="text" maxlength="12" value="RAJ" autocomplete="off" spellcheck="false">
+      <button class="btn ghost" id="flip" type="button">Flip all bits</button>
+    </div>
+    <div class="row" id="chips" aria-label="Examples">
+      <button class="chip" type="button" data-t="NEPAL">NEPAL</button>
+      <button class="chip" type="button" data-t="HELLO">HELLO</button>
+      <button class="chip" type="button" data-t="C++">C++</button>
+      <button class="chip" type="button" data-t="2026">2026</button>
+      <button class="chip" type="button" data-t="CPU">CPU</button>
+    </div>
+  </section>
+
+  <section class="bytes" id="bytes" aria-label="Bytes"></section>
+
+  <section class="strip">
+    <label>Your text as binary</label>
+    <p class="bin" id="bin"></p>
+    <div class="row">
+      <button class="btn" id="copy" type="button">Copy binary</button>
+    </div>
+    <p class="status" id="status" role="status"></p>
+    <p class="hint">Each letter is one byte: 8 bits, each worth 128, 64, 32, 16, 8, 4, 2 or 1. Add up the lit ones to get the ASCII code.</p>
+  </section>
+</main>
+
+<script>
+(function () {
+  var nameEl = document.getElementById("name");
+  var bytesEl = document.getElementById("bytes");
+  var binEl = document.getElementById("bin");
+  var statusEl = document.getElementById("status");
+  var WEIGHTS = [128, 64, 32, 16, 8, 4, 2, 1];
+  var data = [];
+
+  function toBytes(text) {
+    var out = [];
+    for (var i = 0; i < text.length && out.length < 12; i++) {
+      var c = text.charCodeAt(i);
+      out.push(c >= 32 && c <= 126 ? c : 63);
+    }
+    return out;
+  }
+  function toText() {
+    return data.map(function (c) { return String.fromCharCode(c); }).join("");
+  }
+  function pad(n, len, base) {
+    var s = n.toString(base);
+    while (s.length < len) s = "0" + s;
+    return s;
+  }
+
+  function render() {
+    bytesEl.textContent = "";
+    data.forEach(function (code, idx) {
+      var card = document.createElement("div");
+      card.className = "byte";
+
+      var top = document.createElement("div");
+      top.className = "byte-top";
+      var g = document.createElement("div");
+      g.className = "glyph";
+      var printable = code > 32 && code < 127;
+      if (code === 32) { g.textContent = "space"; g.className += " space"; }
+      else if (printable) { g.textContent = String.fromCharCode(code); }
+      else { g.textContent = "?"; g.className += " space"; }
+      var v = document.createElement("div");
+      v.className = "vals";
+      v.innerHTML = "decimal <b>" + code + "</b><br>hex <b>0x" + pad(code, 2, 16).toUpperCase() + "</b>";
+      top.appendChild(g);
+      top.appendChild(v);
+
+      var leds = document.createElement("div");
+      leds.className = "leds";
+      WEIGHTS.forEach(function (w) {
+        var wrap = document.createElement("div");
+        wrap.className = "bit";
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "led";
+        var on = (code & w) !== 0;
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+        b.setAttribute("aria-label", "Bit worth " + w + (on ? ", on" : ", off"));
+        b.addEventListener("click", function () {
+          data[idx] = data[idx] ^ w;
+          sync(true);
+        });
+        var lab = document.createElement("div");
+        lab.className = "weight";
+        lab.textContent = w;
+        wrap.appendChild(b);
+        wrap.appendChild(lab);
+        leds.appendChild(wrap);
+      });
+
+      card.appendChild(top);
+      card.appendChild(leds);
+      bytesEl.appendChild(card);
+    });
+    binEl.textContent = data.length
+      ? data.map(function (c) { return pad(c, 8, 2); }).join(" ")
+      : "Type something above.";
+  }
+
+  function sync(updateInput) {
+    if (updateInput) {
+      var t = toText();
+      nameEl.value = t.replace(/[^\x20-\x7E]/g, "?");
+    }
+    render();
+  }
+
+  nameEl.addEventListener("input", function () {
+    data = toBytes(nameEl.value.toUpperCase());
+    render();
+  });
+
+  document.getElementById("chips").addEventListener("click", function (e) {
+    var t = e.target && e.target.getAttribute && e.target.getAttribute("data-t");
+    if (!t) return;
+    nameEl.value = t;
+    data = toBytes(t);
+    render();
+  });
+
+  document.getElementById("flip").addEventListener("click", function () {
+    data = data.map(function (c) { return (~c) & 255; });
+    sync(true);
+  });
+
+  document.getElementById("copy").addEventListener("click", function () {
+    var text = binEl.textContent;
+    function done(ok) {
+      statusEl.textContent = ok ? "Copied." : "Select the binary above and copy it.";
+      setTimeout(function () { statusEl.textContent = ""; }, 2500);
+    }
+    try {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); });
+    } catch (err) { done(false); }
+  });
+
+  data = toBytes(nameEl.value.toUpperCase());
+  render();
+})();
+</script>
+
+</body></html>
